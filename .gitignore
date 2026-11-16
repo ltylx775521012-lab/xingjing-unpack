@@ -1,0 +1,18 @@
+# 构建产物与工具链（不入库）
+sdk/
+dl/
+out/
+tmp/
+pylibs/
+_repo/
+*.apk
+*.keystore
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# 系统
+.DS_Store
+Thumbs.db
