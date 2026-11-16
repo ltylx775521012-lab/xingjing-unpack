@@ -25,6 +25,8 @@
 
 - 应用内自建浏览器，替代系统的 DocumentsUI
 - 面包屑路径、快捷入口、新建文件夹、记住上次目录
+- 列表 / 缩略图网格双模式：网格手机 3 列、平板 5 列，后台解码 + LRU 缓存
+- 多选、全选、整个文件夹导入、长按删除
 - 需要「所有文件访问」权限；拒绝则回落到系统选择器
 
 ## 截图
@@ -32,6 +34,12 @@
 | 手机 · 深色 | 图片转换 · 手机 | 平板 · 两栏 |
 | --- | --- | --- |
 | ![](docs/screenshots/01-overview.png) | ![](docs/screenshots/02-convert-phone.png) | ![](docs/screenshots/03-convert-tablet.png) |
+
+缩略图网格模式：
+
+| 手机 · 3 列 | 平板 · 5 列 |
+| --- | --- |
+| ![](docs/screenshots/06-grid-phone.png) | ![](docs/screenshots/07-grid-tablet.png) |
 
 图标是 Q 版二次元头像：用 `立绘-鲸鱼娘.png` 做参考图，走 grsai 的图生图生成，
 再经 `tools/build_icon_art.py` 裁到内容边界、按安全区缩放、转成自适应图标资源
@@ -97,7 +105,7 @@ docs/                         截图
 
 ## 版本
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前 v1.5.0。
+见 [CHANGELOG.md](CHANGELOG.md)。当前 v1.5.1。
 
 ## 说明
 

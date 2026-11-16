@@ -1,6 +1,9 @@
 package io.dafeiyu.unpack;
 
 import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.DialogInterface;
@@ -10,7 +13,9 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.widget.AbsListView;
 import android.widget.BaseAdapter;
+import android.widget.GridView;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -59,6 +64,12 @@ public class FileBrowser {
     private View confirmBtn;
     private ListView list;
     private Adapter adapter;
+    private GridView grid;
+    private GridAdapter gridAdapter;
+    private boolean gridMode;
+    private ImageView btnView;
+    private int colDp = 98;
+    private boolean wide;
     private LinearLayout chips;
     private ImageView upBtn;
     private View loading;
@@ -81,7 +92,12 @@ public class FileBrowser {
 
     // ------------------------------------------------------------------ 建界面
 
+    private static final String PREF = "xingjing";
+    private static final String KEY_GRID = "browser_grid";
+
     private void open() {
+        gridMode = mode == MODE_IMAGES && act.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                .getBoolean(KEY_GRID, false);
         dialog = new Dialog(act);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
@@ -105,6 +121,20 @@ public class FileBrowser {
                 cancel();
             }
         });
+        if (mode == MODE_IMAGES) {
+            btnView = Ui.icon(act, gridMode ? R.drawable.ic_list : R.drawable.ic_grid, t.text2, 19);
+            FrameLayout vb = new FrameLayout(act);
+            FrameLayout.LayoutParams vfp = new FrameLayout.LayoutParams(dp(19), dp(19));
+            vfp.gravity = Gravity.CENTER;
+            vb.addView(btnView, vfp);
+            vb.setLayoutParams(new LinearLayout.LayoutParams(dp(34), dp(34)));
+            vb.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    toggleView();
+                }
+            });
+            head.addView(vb);
+        }
         if (mode == MODE_IMAGES) {
             tvSelectAll = Ui.text(act, 13, t.accent, true);
             tvSelectAll.setText("全选");
@@ -170,6 +200,25 @@ public class FileBrowser {
         adapter = new Adapter();
         list.setAdapter(adapter);
         listWrap.addView(list, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        wide = act.getResources().getConfiguration().screenWidthDp >= 840;
+        colDp = wide ? 152 : 98;
+
+        grid = new GridView(act);
+        grid.setNumColumns(GridView.AUTO_FIT);
+        grid.setColumnWidth(dp(colDp));
+        grid.setHorizontalSpacing(dp(wide ? 14 : 8));
+        grid.setVerticalSpacing(dp(wide ? 12 : 9));
+        grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH);
+        grid.setPadding(dp(wide ? 24 : 12), dp(wide ? 10 : 8),
+                dp(wide ? 24 : 12), dp(wide ? 12 : 8));
+        grid.setClipToPadding(false);
+        grid.setSelector(new ColorDrawable(0));
+        gridAdapter = new GridAdapter();
+        grid.setAdapter(gridAdapter);
+        grid.setVisibility(gridMode ? View.VISIBLE : View.GONE);
+        listWrap.addView(grid, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         loading = Ui.text(act, 12, t.text3, false);
         ((TextView) loading).setText("读取中…");
@@ -251,8 +300,9 @@ public class FileBrowser {
             w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
             int sw = act.getResources().getDisplayMetrics().widthPixels;
             int sh = act.getResources().getDisplayMetrics().heightPixels;
-            int width = Math.min(sw, dp(640));
-            w.setLayout(width, Math.min(sh - dp(48), dp(760)));
+            boolean wd = act.getResources().getConfiguration().screenWidthDp >= 840;
+            int width = Math.min(sw, dp(wd ? 900 : 640));
+            w.setLayout(width, Math.min(sh - dp(48), dp(wd ? 720 : 760)));
             w.setGravity(Gravity.CENTER);
         }
         dialog.show();
@@ -324,9 +374,10 @@ public class FileBrowser {
                     public void run() {
                         items = got;
                         adapter.notifyDataSetChanged();
+                        gridAdapter.notifyDataSetChanged();
                         loading.setVisibility(got.isEmpty() ? View.VISIBLE : View.GONE);
                         if (got.isEmpty()) ((TextView) loading).setText("这里没有可显示的文件");
-                        list.setVisibility(View.VISIBLE);
+                        applyMode();
                         updateHint();
                     }
                 });
@@ -368,6 +419,7 @@ public class FileBrowser {
         if (allSelected()) selected.removeAll(imgs);
         else selected.addAll(imgs);
         adapter.notifyDataSetChanged();
+        if (gridAdapter != null) gridAdapter.notifyDataSetChanged();
         updateHint();
     }
 
@@ -513,6 +565,7 @@ public class FileBrowser {
             if (selected.contains(f)) selected.remove(f);
             else selected.add(f);
             adapter.notifyDataSetChanged();
+            if (gridAdapter != null) gridAdapter.notifyDataSetChanged();
             updateHint();
             return;
         }
@@ -522,6 +575,127 @@ public class FileBrowser {
             Files.setLastDir(act, dir);
             listener.onFiles(one);
             dialog.dismiss();
+        }
+    }
+
+    // ------------------------------------------------------------------ 网格
+
+    private void toggleView() {
+        gridMode = !gridMode;
+        act.getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
+                .putBoolean(KEY_GRID, gridMode).apply();
+        if (btnView != null) {
+            btnView.setImageResource(gridMode ? R.drawable.ic_list : R.drawable.ic_grid);
+        }
+        applyMode();
+    }
+
+    private void applyMode() {
+        boolean g = gridMode && mode == MODE_IMAGES;
+        if (grid != null) grid.setVisibility(g ? View.VISIBLE : View.GONE);
+        if (list != null) list.setVisibility(g ? View.GONE : View.VISIBLE);
+        if (g && gridAdapter != null) gridAdapter.notifyDataSetChanged();
+    }
+
+    private static class Cell {
+        LinearLayout root;
+        ImageView thumb;
+        TextView name;
+        View badge;
+    }
+
+    private Cell buildCell() {
+        Cell c = new Cell();
+        c.root = Ui.vertical(act);
+        int side = dp(colDp);
+        c.root.setLayoutParams(new AbsListView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, side + dp(24)));
+
+        FrameLayout box = new FrameLayout(act);
+        c.thumb = new ImageView(act);
+        c.thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        c.thumb.setBackground(Ui.round(act, t.surface2, 14));
+        c.thumb.setClipToOutline(true);
+        box.addView(c.thumb, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(colDp)));
+
+        FrameLayout badgeBox = new FrameLayout(act);
+        badgeBox.setBackground(Ui.round(act, t.accent, 9));
+        ImageView tick = Ui.icon(act, R.drawable.ic_check, t.onAccent, 11);
+        FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(dp(11), dp(11));
+        tp.gravity = Gravity.CENTER;
+        badgeBox.addView(tick, tp);
+        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(dp(18), dp(18));
+        bp.gravity = Gravity.TOP | Gravity.END;
+        bp.topMargin = dp(5);
+        bp.rightMargin = dp(5);
+        c.badge = badgeBox;
+        box.addView(badgeBox, bp);
+
+        c.root.addView(box);
+        c.name = Ui.text(act, 10.5f, t.text2, false);
+        c.name.setSingleLine(true);
+        c.name.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        c.name.setGravity(Gravity.CENTER);
+        c.name.setPadding(dp(2), dp(5), dp(2), 0);
+        c.root.addView(c.name);
+        c.root.setTag(c);
+        return c;
+    }
+
+    private void bindCell(Cell c, final File f) {
+        c.root.setLayoutParams(new AbsListView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(colDp) + dp(24)));
+        c.name.setText(f.getName());
+        c.thumb.setImageDrawable(null);
+        c.thumb.setColorFilter(null);
+        boolean isDir = f.isDirectory();
+        if (isDir) {
+            c.thumb.setTag("");
+            c.thumb.setScaleType(ImageView.ScaleType.CENTER);
+            c.thumb.setImageResource(R.drawable.ic_folder);
+            c.thumb.setColorFilter(t.text2);
+            c.badge.setVisibility(View.GONE);
+        } else {
+            c.thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            c.thumb.setTag(f.getAbsolutePath());
+            c.badge.setVisibility(selected.contains(f) ? View.VISIBLE : View.GONE);
+            Thumbs.load(f, dp(colDp) * 3 / 2, new Thumbs.Callback() {
+                public void onLoaded(String path, Bitmap bmp) {
+                    if (path.equals(c.thumb.getTag())) c.thumb.setImageBitmap(bmp);
+                }
+            });
+        }
+        c.root.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                pick(f);
+            }
+        });
+    }
+
+    private class GridAdapter extends BaseAdapter {
+        public int getCount() {
+            return items.size();
+        }
+
+        public Object getItem(int i) {
+            return items.get(i);
+        }
+
+        public long getItemId(int i) {
+            return i;
+        }
+
+        public View getView(int i, View cv, ViewGroup parent) {
+            Cell c;
+            if (cv == null) {
+                c = buildCell();
+                cv = c.root;
+            } else {
+                c = (Cell) cv.getTag();
+            }
+            bindCell(c, items.get(i));
+            return cv;
         }
     }
 }
