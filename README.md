@@ -33,7 +33,9 @@
 | --- | --- | --- |
 | ![](docs/screenshots/01-overview.png) | ![](docs/screenshots/02-convert-phone.png) | ![](docs/screenshots/03-convert-tablet.png) |
 
-图标由文生图生成，再经 `tools/build_logo.py` 抠底、居中、转成自适应图标资源：
+图标是 Q 版二次元头像：用 `立绘-鲸鱼娘.png` 做参考图，走 grsai 的图生图生成，
+再经 `tools/build_icon_art.py` 裁到内容边界、按安全区缩放、转成自适应图标资源
+（背景层为整张图，前景透明，交给启动器遮罩）：
 
 | 当前图标 | 生成候选 |
 | --- | --- |
@@ -95,7 +97,7 @@ docs/                         截图
 
 ## 版本
 
-见 [CHANGELOG.md](CHANGELOG.md)。当前 v1.4.3。
+见 [CHANGELOG.md](CHANGELOG.md)。当前 v1.5.0。
 
 ## 说明
 
